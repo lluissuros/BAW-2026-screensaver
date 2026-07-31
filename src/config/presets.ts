@@ -1,15 +1,18 @@
 import type { Config } from './types'
-import { migrate } from './store'
-import { defaultConfig } from './defaults'
+import { migrate, minimalConfig } from './store'
 
 /**
- * Two kinds of preset:
+ * A "look" is a named Config. There are two kinds, and the difference matters:
  *
- *  - **built-in** — JSON files committed in `src/presets/`. These survive a new machine, a
- *    fresh browser profile and a cleared cache, which is what matters on the day of the
- *    festival. Save the looks you actually want to use as files.
- *  - **local** — saved into localStorage from the panel. Fast to scribble, but tied to one
- *    browser on one machine. Use "Download JSON" to promote one into `src/presets/`.
+ *  - **published** — JSON files committed in `src/presets/`. The build gives each one a real
+ *    URL: `/1`, `/2`, … in file order, plus `/<slug>`. These survive a new machine, a fresh
+ *    browser profile and a cleared cache, which is what matters on the day of the festival.
+ *  - **saved here** — kept in this browser's storage. Anyone can make these by moving sliders,
+ *    with no account and nothing to install, but they live on one machine only. The way one
+ *    becomes permanent is its share link: see `scripts/add-look.mjs`.
+ *
+ * Published looks are ordered by filename, and `scripts/build-site.mjs` numbers the routes the
+ * same way — the two must agree or `/3` in the gallery would open something else.
  */
 
 const LOCAL_KEY = 'baw2026.presets'
@@ -22,8 +25,23 @@ const builtinFiles = import.meta.glob('../presets/*.json', { eager: true, import
 
 export interface PresetEntry {
   name: string
+  /** URL-safe id. For published looks it is the filename, which is also its route. */
+  slug: string
   source: 'builtin' | 'local'
   config: Config
+  /** 1-based route number. Only published looks have one. */
+  number?: number
+}
+
+export function slugify(name: string): string {
+  const cleaned = name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // strip accents rather than turning them into dashes
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48)
+  return cleaned || 'look'
 }
 
 function readLocal(): Record<string, unknown> {
@@ -39,31 +57,53 @@ function writeLocal(all: Record<string, unknown>): void {
   try {
     localStorage.setItem(LOCAL_KEY, JSON.stringify(all))
   } catch {
-    // Private browsing or a full quota — built-in presets and JSON download still work.
+    // Private browsing or a full quota. Share links still work, which is the important path.
   }
 }
 
-export function listPresets(): PresetEntry[] {
-  const builtin: PresetEntry[] = Object.entries(builtinFiles).map(([path, data]) => {
-    const config = migrate(data)
-    const fallback = path.replace(/^.*\//, '').replace(/\.json$/, '')
-    return { name: config.name || fallback, source: 'builtin', config }
-  })
-  const local: PresetEntry[] = Object.entries(readLocal()).map(([name, data]) => ({
-    name,
-    source: 'local',
-    config: migrate(data),
-  }))
-  return [...builtin, ...local].sort((a, b) => a.name.localeCompare(b.name))
+/** The committed looks, in the same order the site numbers their routes. */
+export function publishedLooks(): PresetEntry[] {
+  return Object.entries(builtinFiles)
+    .map(([path, data]) => {
+      // `02-calm.json` → slug `calm`, number 2. The numeric prefix is how the route order is
+      // controlled without it leaking into the pretty URL.
+      const file = path.replace(/^.*\//, '').replace(/\.json$/, '')
+      const slug = file.replace(/^\d+-/, '')
+      const config = migrate(data)
+      return { file, name: config.name || slug, slug, source: 'builtin' as const, config }
+    })
+    // Sort by *filename*, prefix included — the same order scripts/build-site.mjs numbers the
+    // routes in. Sorting by slug instead would silently make `/3` here open a different look.
+    .sort((a, b) => a.file.localeCompare(b.file))
+    .map(({ file: _file, ...entry }, index) => ({ ...entry, number: index + 1 }))
 }
 
-export function findPreset(name: string): PresetEntry | undefined {
-  return listPresets().find((p) => p.name.toLowerCase() === name.toLowerCase())
+/** Looks saved in this browser. Newest first — people want their latest attempt on top. */
+export function localLooks(): PresetEntry[] {
+  return Object.entries(readLocal())
+    .map(([name, data]) => ({
+      name,
+      slug: slugify(name),
+      source: 'local' as const,
+      config: migrate(data),
+    }))
+    .reverse()
+}
+
+export function listPresets(): PresetEntry[] {
+  return [...publishedLooks(), ...localLooks()]
+}
+
+export function findPreset(nameOrSlug: string): PresetEntry | undefined {
+  const wanted = nameOrSlug.toLowerCase()
+  return listPresets().find((p) => p.slug.toLowerCase() === wanted || p.name.toLowerCase() === wanted)
 }
 
 export function saveLocalPreset(name: string, config: Config): void {
   const all = readLocal()
-  all[name] = { ...config, name }
+  // Re-inserting moves it to the end, which `localLooks` reverses into "most recent first".
+  delete all[name]
+  all[name] = { ...minimalConfig(config), name }
   writeLocal(all)
 }
 
@@ -76,7 +116,7 @@ export function deleteLocalPreset(name: string): void {
 /** Keeps in-progress edits across a reload, so a stray refresh mid-session costs nothing. */
 export function saveWorking(config: Config): void {
   try {
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(config))
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(minimalConfig(config)))
   } catch {
     /* ignore */
   }
@@ -89,16 +129,4 @@ export function loadWorking(): Config | null {
   } catch {
     return null
   }
-}
-
-export function clearWorking(): void {
-  try {
-    localStorage.removeItem(AUTOSAVE_KEY)
-  } catch {
-    /* ignore */
-  }
-}
-
-export function startingConfig(): Config {
-  return defaultConfig()
 }

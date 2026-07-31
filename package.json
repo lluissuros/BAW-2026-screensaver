@@ -6,9 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:site": "tsc --noEmit && node scripts/build-site.mjs",
     "preview": "vite preview --port 4173",
     "check": "tsc --noEmit",
-    "assets": "./scripts/prepare-assets.sh"
+    "assets": "./scripts/prepare-assets.sh",
+    "add-look": "node scripts/add-look.mjs",
+    "contact-sheet": "node scripts/contact-sheet.mjs"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

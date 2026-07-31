@@ -1,0 +1,66 @@
+# Turns a submitted look into a permanent numbered route.
+#
+# Someone on the published site presses "Save & copy link", then "Submit", which opens a
+# pre-filled issue containing their share link. Nothing happens until Lluis adds the
+# `publish-look` label — one tap, from a phone — so no stranger can commit to the repo
+# unattended. Once labelled, the look is decoded, committed, and live within a minute.
+#
+# The decoding runs through scripts/add-look.mjs, which rebuilds the JSON field by field against
+# the shape of defaultConfig(): unknown keys dropped, types enforced, numbers clamped, asset
+# names checked. The worst a hostile link can do is produce an ugly look.
+
+name: Publish a submitted look
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  publish:
+    if: github.event.label.name == 'publish-look'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Via the environment, never interpolated into a shell command: an issue body is
+      # attacker-controlled text.
+      - name: Take the issue body
+        env:
+          BODY: ${{ github.event.issue.body }}
+        run: printf '%s' "$BODY" > "$RUNNER_TEMP/issue-body.txt"
+
+      - name: Decode the look
+        id: add
+        env:
+          TITLE: ${{ github.event.issue.title }}
+        run: |
+          name="${TITLE#look: }"
+          node scripts/add-look.mjs --from-file="$RUNNER_TEMP/issue-body.txt" --name="$name"
+
+      - name: Commit it
+        env:
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/presets
+          git commit -m "Publish look from issue #${NUMBER}"
+          git push
+
+      - name: Say where it landed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NUMBER: ${{ github.event.issue.number }}
+          LOOK: ${{ steps.add.outputs.number }}
+          SLUG: ${{ steps.add.outputs.slug }}
+          SITE: https://lluissuros.github.io/BAW-2026-screensaver
+        run: |
+          gh issue comment "$NUMBER" --body "Published. It will be live in a minute at ${SITE}/${LOOK}/ (also /${SLUG}/), and it is in the gallery at ${SITE}/gallery/."
+          gh issue close "$NUMBER"

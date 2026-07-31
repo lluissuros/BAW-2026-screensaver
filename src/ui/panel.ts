@@ -1,8 +1,10 @@
 import { deleteLocalPreset, listPresets, saveLocalPreset } from '../config/presets'
 import { globalSections, layerSections, type Field, type Section } from '../config/schema'
-import { encodeConfig, migrate, type Store } from '../config/store'
+import { migrate, minimalConfig, type Store } from '../config/store'
+import { shareLink } from '../config/links'
 import { defaultConfig } from '../config/defaults'
 import type { DriveBus } from '../drive'
+import { copy } from './gallery'
 
 /** Panel-only state: how you are looking at the composition, not part of the composition. */
 export interface EditTools {
@@ -17,6 +19,7 @@ export interface PanelHooks {
   /** Called after any config field is edited, so main can react (e.g. start the mic). */
   onFieldChange: (path: string) => void
   onExportVideo: () => void
+  onOpenGallery: () => void
   getSelected: () => number
   setSelected: (index: number) => void
 }
@@ -87,31 +90,41 @@ export class Panel {
     const foot = document.createElement('div')
     foot.className = 'panel-foot'
 
+    // The happy path is one button. Someone who has never seen this app should be able to move
+    // sliders and end up with a link they can send, without meeting the word JSON.
+    const saveRow = document.createElement('div')
+    saveRow.className = 'row'
+    saveRow.append(
+      button('Save & copy link', 'btn primary wide', () => void this.saveAndShare()),
+      button('Looks…', 'btn', () => this.hooks.onOpenGallery()),
+    )
+
     this.presetSelect = document.createElement('select')
     const presetRow = document.createElement('div')
     presetRow.className = 'row'
-    presetRow.append(
-      this.presetSelect,
-      button('Load', 'btn', () => this.loadSelectedPreset()),
-      button('Save as…', 'btn primary', () => this.saveAsPreset()),
-    )
-
-    const fileRow = document.createElement('div')
-    fileRow.className = 'row'
-    fileRow.append(
-      button('Download JSON', 'btn', () => this.downloadJson()),
-      button('Open JSON…', 'btn', () => this.openJson()),
-      button('Copy link', 'btn', () => this.copyLink()),
-    )
+    presetRow.append(this.presetSelect, button('Open', 'btn', () => this.loadSelectedPreset()))
 
     const actionRow = document.createElement('div')
     actionRow.className = 'row'
     this.exportButton = button('Export video loop', 'btn', () => this.hooks.onExportVideo())
     actionRow.append(
       this.exportButton,
+      button('Copy link', 'btn', () => void this.copyLink()),
       button('Reset', 'btn', () => this.resetToReference()),
+    )
+
+    const fileRow = document.createElement('details')
+    fileRow.className = 'section advanced'
+    const fileSummary = document.createElement('summary')
+    fileSummary.textContent = 'Files'
+    const fileButtons = document.createElement('div')
+    fileButtons.className = 'row'
+    fileButtons.append(
+      button('Download JSON', 'btn', () => this.downloadJson()),
+      button('Open JSON…', 'btn', () => this.openJson()),
       button('Delete', 'btn', () => this.deleteSelectedPreset()),
     )
+    fileRow.append(fileSummary, fileButtons)
 
     this.statusEl = document.createElement('div')
     this.statusEl.className = 'status'
@@ -119,10 +132,10 @@ export class Panel {
     const keys = document.createElement('div')
     keys.className = 'keys'
     keys.innerHTML = `<kbd>E</kbd> panel · <kbd>F</kbd> fullscreen · <kbd>Space</kbd> pause ·
-      <kbd>G</kbd> ghost · <kbd>1–9</kbd> pick layer · <kbd>←↑↓→</kbd> nudge<br>
+      <kbd>G</kbd> ghost · <kbd>L</kbd> looks · <kbd>1–9</kbd> pick layer · <kbd>←↑↓→</kbd> nudge<br>
       drag to move · wheel to resize · shift+wheel to rotate`
 
-    foot.append(presetRow, fileRow, actionRow, this.statusEl, keys)
+    foot.append(saveRow, presetRow, actionRow, this.statusEl, fileRow, keys)
     this.el.append(foot)
 
     parent.append(this.el)
@@ -373,14 +386,21 @@ export class Panel {
     this.status(`Loaded “${preset.name}”.`)
   }
 
-  private saveAsPreset(): void {
-    const name = prompt('Save this look as:', this.store.config.name)?.trim()
+  /** Save and hand back a link in one move — the only step most people need. */
+  async saveAndShare(): Promise<void> {
+    const suggestion = this.store.config.name === 'reference' ? '' : this.store.config.name
+    const name = prompt('Name this look:', suggestion)?.trim()
     if (!name) return
     this.store.set('name', name)
     saveLocalPreset(name, this.store.config)
     this.refreshPresetList()
     this.presetSelect.value = `local:${name}`
-    this.status(`Saved “${name}” in this browser. Download the JSON into src/presets/ to keep it.`)
+    const copied = await copy(shareLink(this.store.config, { edit: true }))
+    this.status(
+      copied
+        ? `Saved “${name}” and copied its link — paste it anywhere to bring this exact look back.`
+        : `Saved “${name}”. The link is in the box above.`,
+    )
   }
 
   private deleteSelectedPreset(): void {
@@ -395,7 +415,11 @@ export class Panel {
 
   private downloadJson(): void {
     const name = this.store.config.name || 'preset'
-    const blob = new Blob([JSON.stringify(this.store.config, null, 2)], { type: 'application/json' })
+    // Only what differs from the reference, so a committed look reads as a short, reviewable
+    // list of intentions rather than a dump of every parameter in the app.
+    const blob = new Blob([JSON.stringify(minimalConfig(this.store.config), null, 2)], {
+      type: 'application/json',
+    })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -424,13 +448,9 @@ export class Panel {
   }
 
   private async copyLink(): Promise<void> {
-    const url = `${location.origin}${location.pathname}?edit=1#c=${encodeConfig(this.store.config)}`
-    try {
-      await navigator.clipboard.writeText(url)
-      this.status('Link copied — the whole look travels in the URL.')
-    } catch {
-      this.status(url)
-    }
+    const url = shareLink(this.store.config, { edit: true })
+    const copied = await copy(url)
+    this.status(copied ? `Link copied (${url.length} characters) — the whole look travels in it.` : url)
   }
 
   private resetToReference(): void {

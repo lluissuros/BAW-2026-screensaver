@@ -25,10 +25,17 @@ npm run dev          # then open the printed URL
 
 Then: <kbd>E</kbd> to edit, <kbd>F</kbd> for full screen.
 
-To hand it to someone else, or to run it off a USB stick:
+To run it off a USB stick or any plain file server:
 
 ```bash
-npm run build        # produces dist/, self-contained, relative paths
+npm run build        # dist/, self-contained, relative paths
+```
+
+To build exactly what gets published, including the numbered routes:
+
+```bash
+npm run build:site
+npx vite preview --base=/BAW-2026-screensaver/
 ```
 
 ## Keys
@@ -40,6 +47,7 @@ npm run build        # produces dist/, self-contained, relative paths
 | <kbd>Esc</kbd> | Leave edit mode |
 | <kbd>Space</kbd> | Pause the animation (handy while positioning things) |
 | <kbd>G</kbd> | Toggle the reference ghost |
+| <kbd>L</kbd> | Open the gallery of saved looks |
 | <kbd>1</kbd>–<kbd>9</kbd> | Select a layer |
 | <kbd>←↑↓→</kbd> | Nudge the selected layer (hold <kbd>Shift</kbd> for bigger steps) |
 
@@ -114,18 +122,75 @@ can have mostly-autonomous motion with a little reactivity on top.
 
 If permission is denied the app says so and carries on synthetically.
 
-## Presets
+## Sharing it — the live site
 
-- **Built-in** — JSON files in `src/presets/`. These survive a new machine, a fresh browser
-  profile and a cleared cache, which is what matters on the day. Partial files are fine;
-  anything missing falls back to the defaults.
-- **Local** — saved from the panel into this browser's storage. Quick to scribble, tied to one
-  machine. Use **Download JSON** to promote one into `src/presets/` and commit it.
-- **Copy link** puts the entire look in a URL, which is the fastest way to send a version to
-  someone else.
+**https://lluissuros.github.io/BAW-2026-screensaver/**
 
-Edits also autosave, so a stray reload mid-session loses nothing. `?fresh=1` ignores that,
-`?preset=<name>` opens a specific one, `?edit=1` opens with the panel already out.
+Every push to `main` rebuilds and redeploys it. The site needs to be public for Pages on a free
+account, so it ships a `robots.txt` that keeps the unreleased festival identity out of search
+engines — the URL is public but unlisted, so treat it as "anyone I send it to".
+
+Each published look gets real addresses, generated at build time:
+
+| URL | What it is |
+| --- | --- |
+| `/` | the current default, clean |
+| `/1/`, `/2/`, `/3/` … | one per published look, in file order |
+| `/reference/`, `/calm/`, `/pulse/` | the same looks, by name |
+| `/gallery/` | all of them as a grid, plus whatever the visitor saved |
+
+## Looks: how anyone saves one
+
+The point is that somebody who has never opened a code editor can shape the screen and keep it.
+No account, nothing installed, no JSON:
+
+1. Open the link. Click **Edit this screen** at the bottom (or press <kbd>E</kbd>).
+2. Move sliders.
+3. **Save & copy link.** It asks for a name, remembers it in the browser, and puts a link on the
+   clipboard.
+4. Send that link to anyone. Opening it reproduces the look exactly.
+
+The link *is* the storage — the whole look rides in the URL, which is why this needs no server.
+A typical one is about a hundred characters, because only what differs from the reference gets
+encoded. The address bar also stays a valid permalink as you edit, so "copy the URL" works at
+any moment.
+
+**Looks…** (or <kbd>L</kbd>) opens the gallery: the published looks plus everything saved in this
+browser, each as a real rendered thumbnail. From there: open one, copy its link, delete it, or
+copy a single link containing *all* your saves to send in one go.
+
+### Making someone's look permanent
+
+Saved-in-browser looks live on one machine. To give one its own number and route:
+
+```bash
+npm run add-look -- --url='<the link they sent>' --name='bruno 1'
+git add src/presets && git commit -m 'Publish look: bruno 1' && git push
+```
+
+It lands at `/4/` and `/bruno-1/` once the deploy finishes. `--dry-run` shows what it would
+write. `--all` accepts a collection link carrying several looks at once.
+
+Or let GitHub do it: **Submit** in the gallery opens a pre-filled issue with the link in it.
+Adding the `publish-look` label — one tap on a phone — makes
+`.github/workflows/publish-look.yml` decode it, commit it and reply with the URL. Nothing lands
+unattended: without the label, nothing happens.
+
+Incoming links are not trusted. `scripts/add-look.mjs` rebuilds the JSON field by field against
+the shape of `defaultConfig()`, so unknown keys are dropped, types are enforced, canvas sizes are
+clamped and asset names are checked against the files that exist. A hostile link can produce an
+ugly look and nothing else.
+
+### Where looks live
+
+- **Published** — `src/presets/NN-slug.json`, committed. The `NN` prefix picks the route number
+  and is stripped from the pretty URL, so `02-calm.json` is `/2/` and `/calm/`. Files are
+  partial: anything absent falls back to the reference, which makes them short and readable.
+- **Saved on this device** — the browser's storage. Free to make, tied to one machine.
+
+Edits autosave too, so a stray reload mid-session loses nothing. `?fresh=1` ignores that,
+`?preset=<slug>` opens a specific one, `?edit=1` opens with the panel out, `?gallery=1` opens the
+grid.
 
 ## Exporting a video loop
 

@@ -1,5 +1,6 @@
 import type { Config, LayerConfig } from './types'
 import { defaultConfig } from './defaults'
+import { minimalAgainst } from './diff'
 
 type Listener = (config: Config) => void
 
@@ -96,11 +97,20 @@ export function migrate(input: unknown): Config {
   }
 }
 
-// ── URL sharing: the whole config travels in the hash, so a look can be handed to another
-// machine by copying a link, with no server and no file. ──
+// ── URL sharing ──
+//
+// A look travels in the URL hash: no server, no account, no file to email. What gets encoded
+// is only what *differs* from the reference composition, which keeps a typical link around a
+// hundred characters instead of three kilobytes — short enough to paste into a message without
+// it looking broken. `migrate` fills the rest back in on the way out, so a partial config is
+// already a valid stored form; this just takes advantage of that.
+
+export function minimalConfig(config: Config): Record<string, unknown> {
+  return minimalAgainst(config, defaultConfig())
+}
 
 export function encodeConfig(config: Config): string {
-  const bytes = new TextEncoder().encode(JSON.stringify(config))
+  const bytes = new TextEncoder().encode(JSON.stringify(minimalConfig(config)))
   let bin = ''
   for (const b of bytes) bin += String.fromCharCode(b)
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')

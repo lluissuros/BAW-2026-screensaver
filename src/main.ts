@@ -1,18 +1,25 @@
 import './style.css'
 
 import { defaultConfig } from './config/defaults'
+import { parseCollection } from './config/links'
 import { findPreset, loadWorking, saveWorking } from './config/presets'
-import { decodeConfig, Store } from './config/store'
+import { decodeConfig, encodeConfig, Store } from './config/store'
 import type { Config } from './config/types'
 import { DriveBus } from './drive'
 import { Renderer } from './engine/renderer'
+import { ThumbnailRenderer } from './engine/thumbnail'
 import { recordLoop } from './export/recorder'
+import { Gallery } from './ui/gallery'
 import { attachInteractions } from './ui/interact'
 import { Overlay } from './ui/overlay'
 import { Panel, type EditTools } from './ui/panel'
 
 const canvas = document.querySelector<HTMLCanvasElement>('#stage')!
 const uiRoot = document.querySelector<HTMLElement>('#ui')!
+const params = new URLSearchParams(location.search)
+
+/** Looks that arrived on a collection link, held for the gallery to offer. */
+const receivedLooks: Config[] = []
 
 const store = new Store(resolveInitialConfig())
 const drive = new DriveBus()
@@ -22,11 +29,14 @@ await renderer.load()
 const overlay = new Overlay(uiRoot)
 const tools: EditTools = { ghost: 0, bounds: true }
 
-let editing = new URLSearchParams(location.search).has('edit')
+const thumbnails = new ThumbnailRenderer()
+
+let editing = params.has('edit')
 let selected = 0
 let exporting = false
 let hintTimer = 0
 let autosaveTimer = 0
+let permalinkTimer = 0
 let lastFrameAt = performance.now()
 
 const panel = new Panel(uiRoot, store, {
@@ -37,8 +47,23 @@ const panel = new Panel(uiRoot, store, {
     if (path === 'audio.enabled') void syncAudio()
   },
   onExportVideo: () => void exportVideo(),
+  onOpenGallery: () => gallery.open(receivedLooks),
   getSelected: () => selected,
   setSelected: select,
+})
+
+const gallery = new Gallery(uiRoot, {
+  thumbnails,
+  getCurrent: () => store.config,
+  onSaveCurrent: () => {
+    void panel.saveAndShare().then(() => gallery.refresh())
+  },
+  onOpen: (config, label) => {
+    store.replace(config)
+    panel.rebuild()
+    panel.status(`Opened “${label}”.`)
+    if (!editing) setMode(true)
+  },
 })
 
 attachInteractions({
@@ -53,9 +78,13 @@ attachInteractions({
   },
 })
 
-const hint = document.createElement('div')
+// Clickable, not just a keyboard hint: most people who open the shared link will never guess
+// that a letter key opens an editor.
+const hint = document.createElement('button')
 hint.id = 'hint'
-hint.innerHTML = '<kbd>E</kbd> edit · <kbd>F</kbd> fullscreen'
+hint.type = 'button'
+hint.innerHTML = 'Edit this screen <span>· <kbd>E</kbd> · <kbd>F</kbd> full screen</span>'
+hint.addEventListener('click', () => setMode(true))
 uiRoot.append(hint)
 
 setMode(editing)
@@ -74,7 +103,16 @@ canvas.addEventListener('webglcontextlost', (event) => {
 store.subscribe((config) => {
   clearTimeout(autosaveTimer)
   autosaveTimer = window.setTimeout(() => saveWorking(config), 400)
+  // Keep the address bar a valid permalink at all times, so "copy the URL" is always a way to
+  // save and share — no button required, and a reload restores exactly what you were looking at.
+  clearTimeout(permalinkTimer)
+  permalinkTimer = window.setTimeout(() => {
+    history.replaceState(null, '', `${location.pathname}${location.search}#c=${encodeConfig(config)}`)
+  }, 600)
 })
+
+const routedView = (window as unknown as { __BAW_VIEW__?: string }).__BAW_VIEW__
+if (params.has('gallery') || routedView === 'gallery') gallery.open(receivedLooks)
 
 // A handle on the running app for the browser console. Useful while sitting with the artist
 // ("try width 62"), and it is how the screenshot checks in scripts/ drive the page.
@@ -145,11 +183,18 @@ function onKeyDown(event: KeyboardEvent): void {
     void toggleFullscreen()
     return
   }
-  if (event.key === 'Escape' && editing) {
-    setMode(false)
+  if (event.key === 'Escape') {
+    if (gallery.isOpen) gallery.close()
+    else if (editing) setMode(false)
     return
   }
   if (typing) return
+
+  if (event.key === 'l' || event.key === 'L') {
+    if (gallery.isOpen) gallery.close()
+    else gallery.open(receivedLooks)
+    return
+  }
 
   if (event.key === ' ') {
     event.preventDefault()
@@ -290,13 +335,25 @@ async function exportVideo(): Promise<void> {
 // ── startup config ──
 
 function resolveInitialConfig(): Config {
-  const hash = location.hash.startsWith('#c=') ? location.hash.slice(3) : ''
-  if (hash) {
-    const shared = decodeConfig(hash)
+  // A link someone was sent always wins — that is the whole point of it.
+  if (location.hash.startsWith('#c=')) {
+    const shared = decodeConfig(location.hash.slice(3))
     if (shared) return shared
   }
 
-  const wanted = new URLSearchParams(location.search).get('preset')
+  // A collection link: several looks in one URL. Open the first, offer the rest in the gallery.
+  if (location.hash.startsWith('#cs=')) {
+    for (const encoded of parseCollection(location.hash.slice(4))) {
+      const config = decodeConfig(encoded)
+      if (config) receivedLooks.push(config)
+    }
+    if (receivedLooks[0]) return structuredClone(receivedLooks[0])
+  }
+
+  // The generated route pages (`/1/`, `/calm/`) inject this. Someone opening /3 wants look 3,
+  // not whatever they were fiddling with yesterday, so it outranks the autosave.
+  const routed = (window as unknown as { __BAW_LOOK__?: string }).__BAW_LOOK__
+  const wanted = routed || params.get('preset')
   if (wanted) {
     const preset = findPreset(wanted)
     if (preset) return structuredClone(preset.config)
@@ -304,7 +361,7 @@ function resolveInitialConfig(): Config {
 
   // Nothing asked for: pick up where the last session left off, so a stray reload mid-edit
   // costs nothing. `?fresh=1` skips that.
-  if (!new URLSearchParams(location.search).has('fresh')) {
+  if (!params.has('fresh')) {
     const working = loadWorking()
     if (working) return working
   }

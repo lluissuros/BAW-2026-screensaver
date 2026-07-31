@@ -38,6 +38,27 @@ Concretely:
   downstream knows which is in charge.
 - `src/ui/`, `src/export/` — panel, canvas interaction, overlay, video recorder.
 
+## Storage: there is no backend, and there must not be one
+
+A look is stored in its URL. `src/config/diff.ts` reduces a config to what differs from the
+reference, `store.ts` base64s that into the hash, and `migrate()` fills the rest back in. That is
+the entire persistence layer, and it is why a non-technical visitor can save something without an
+account and why the site costs nothing to run.
+
+Consequences to respect:
+
+- **Never add a required service.** No database, no auth, no API. If a feature seems to need one,
+  it can almost certainly be expressed as a link, a committed file, or a build-time artifact.
+- **`src/config/diff.ts` has no imports** beyond a type, because `scripts/add-look.mjs` loads it
+  directly in Node (whose ESM resolution differs from Vite's). Keep it that way, or the CLI and
+  the browser will drift into two implementations of the same thing.
+- **Route numbering lives in two places** — `publishedLooks()` and `scripts/build-site.mjs` — and
+  both must sort by *filename*, prefix included. They disagreed once and `/3` in the gallery
+  opened a different look than `/3/` did.
+- **Anything decoded from a link is hostile input.** `scripts/add-look.mjs` rebuilds it against
+  the shape of `defaultConfig()`. Extend that sanitiser when you add a config field, especially
+  one that becomes a GPU allocation or a filename.
+
 ## The two invariants worth protecting
 
 1. **Every animation rate is a whole number of cycles per loop.** That is the only reason the
