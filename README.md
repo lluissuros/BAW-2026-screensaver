@@ -139,6 +139,16 @@ Each published look gets real addresses, generated at build time:
 | `/reference/`, `/calm/`, `/pulse/` | the same looks, by name |
 | `/gallery/` | all of them as a grid, plus whatever the visitor saved |
 
+### On a phone it only shows
+
+Editing needs room for a 336px panel next to the artwork and a pointer you can aim; a phone has
+neither — the panel covers the very thing it is adjusting. So on a small or touch-only screen
+there is no editor at all, even if the link says `?edit=1` (share links do, for collaborators on
+a laptop). You get the composition, full bleed, and one tap to drop the browser chrome.
+
+The gallery still works there, for browsing versions and copying links. `?edit=force` overrides
+the check if you ever want the panel on a tablet.
+
 ## Looks: how anyone saves one
 
 The point is that somebody who has never opened a code editor can shape the screen and keep it.

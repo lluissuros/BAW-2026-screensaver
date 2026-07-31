@@ -66,6 +66,9 @@ Consequences to respect:
    control must be integer-stepped and it must be a function of `phase`, never of wall time.
 2. **Show mode must need nothing.** No audio device, no permission, no network, no localStorage,
    no server. Anything new must degrade to "still runs, still looks alive".
+3. **A phone is a display, never an editor** (`src/ui/device.ts`). Editing UI must stay behind
+   `editable`, and a share link carrying `?edit=1` has to open clean on a small screen. If you add
+   a control, ask where it goes on a 390px viewport — the answer is usually "nowhere".
 
 ## Verifying changes
 

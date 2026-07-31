@@ -28,8 +28,13 @@ export class ThumbnailRenderer {
     return this.loading
   }
 
-  /** Returns a PNG data URL. `key` is used for caching; pass something stable per look. */
-  async render(config: Config, key: string, height = 300): Promise<string> {
+  /**
+   * Returns a PNG data URL. `key` is used for caching; pass something stable per look.
+   *
+   * The default height accounts for pixel density: a card is around 400 CSS pixels tall, and on a
+   * phone at 3× that is 1200 device pixels — a 300px render looks like a smeared JPEG.
+   */
+  async render(config: Config, key: string, height = defaultThumbHeight()): Promise<string> {
     const cached = this.cache.get(key)
     if (cached) return cached
 
@@ -62,4 +67,9 @@ export class ThumbnailRenderer {
   invalidate(key: string): void {
     this.cache.delete(key)
   }
+}
+
+function defaultThumbHeight(): number {
+  const density = Math.min(3, Math.max(1, window.devicePixelRatio || 1))
+  return Math.round(340 * density)
 }

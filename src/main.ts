@@ -9,6 +9,7 @@ import { DriveBus } from './drive'
 import { Renderer } from './engine/renderer'
 import { ThumbnailRenderer } from './engine/thumbnail'
 import { recordLoop } from './export/recorder'
+import { canEdit, isTouchPrimary } from './ui/device'
 import { Gallery } from './ui/gallery'
 import { attachInteractions } from './ui/interact'
 import { Overlay } from './ui/overlay'
@@ -31,7 +32,14 @@ const tools: EditTools = { ghost: 0, bounds: true }
 
 const thumbnails = new ThumbnailRenderer()
 
-let editing = params.has('edit')
+/**
+ * Whether this device gets an editor at all. On a phone it does not: the panel would cover the
+ * composition, and a shared link (which carries `?edit=1` for collaborators on a laptop) should
+ * open as a clean display instead.
+ */
+const editable = canEdit(params)
+
+let editing = editable && params.has('edit')
 let selected = 0
 let exporting = false
 let hintTimer = 0
@@ -54,6 +62,7 @@ const panel = new Panel(uiRoot, store, {
 
 const gallery = new Gallery(uiRoot, {
   thumbnails,
+  canSave: editable,
   getCurrent: () => store.config,
   onSaveCurrent: () => {
     void panel.saveAndShare().then(() => gallery.refresh())
@@ -62,7 +71,7 @@ const gallery = new Gallery(uiRoot, {
     store.replace(config)
     panel.rebuild()
     panel.status(`Opened “${label}”.`)
-    if (!editing) setMode(true)
+    if (editable && !editing) setMode(true)
   },
 })
 
@@ -79,13 +88,26 @@ attachInteractions({
 })
 
 // Clickable, not just a keyboard hint: most people who open the shared link will never guess
-// that a letter key opens an editor.
+// that a letter key opens an editor. On a phone there is nothing to open, so the same pill offers
+// the one thing that helps there — getting the browser chrome out of the way.
 const hint = document.createElement('button')
 hint.id = 'hint'
 hint.type = 'button'
-hint.innerHTML = 'Edit this screen <span>· <kbd>E</kbd> · <kbd>F</kbd> full screen</span>'
-hint.addEventListener('click', () => setMode(true))
+if (editable) {
+  hint.innerHTML = 'Edit this screen <span>· <kbd>E</kbd> · <kbd>F</kbd> full screen</span>'
+  hint.addEventListener('click', () => setMode(true))
+} else {
+  hint.textContent = 'Tap for full screen'
+  hint.addEventListener('click', () => void toggleFullscreen())
+}
 uiRoot.append(hint)
+
+if (!editable) {
+  // The whole screen is the button. On a phone the only useful control is getting the browser's
+  // chrome out of the way.
+  canvas.addEventListener('click', () => void toggleFullscreen())
+  if (isTouchPrimary()) document.body.classList.add('touch')
+}
 
 setMode(editing)
 applyTools()
@@ -122,7 +144,9 @@ if (import.meta.env.DEV) {
   })
 }
 
-showHint(4000)
+// Shorter on a phone: the pill sits over the hand-lettering, and there is only one thing it can
+// tell you.
+showHint(editable ? 4000 : 2500)
 requestAnimationFrame(loop)
 
 // ── loop ──
@@ -146,11 +170,11 @@ function loop(now: number): void {
 // ── modes ──
 
 function setMode(edit: boolean): void {
-  editing = edit
-  document.body.classList.toggle('show-mode', !edit)
-  panel.open(edit)
-  overlay.setVisible(edit)
-  if (edit) panel.selectLayer(selected)
+  editing = edit && editable
+  document.body.classList.toggle('show-mode', !editing)
+  panel.open(editing)
+  overlay.setVisible(editing)
+  if (editing) panel.selectLayer(selected)
 }
 
 function applyTools(): void {

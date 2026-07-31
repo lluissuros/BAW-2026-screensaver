@@ -16,6 +16,8 @@ export interface GalleryHooks {
   onSaveCurrent: () => void
   getCurrent: () => Config
   thumbnails: ThumbnailRenderer
+  /** False on a phone, where there is no editor to save from — browsing only. */
+  canSave: boolean
 }
 
 export class Gallery {
@@ -34,14 +36,16 @@ export class Gallery {
     head.innerHTML = `
       <div>
         <h2>Looks</h2>
-        <p>Move the sliders, save what you like, send anyone the link. Nothing to install.</p>
+        <p>${
+          hooks.canSave
+            ? 'Move the sliders, save what you like, send anyone the link. Nothing to install.'
+            : 'Tap one to show it. Editing needs a bigger screen and a mouse.'
+        }</p>
       </div>`
     const actions = document.createElement('div')
     actions.className = 'row'
-    actions.append(
-      btn('Save this look', 'btn primary', () => this.hooks.onSaveCurrent()),
-      btn('Close', 'btn', () => this.close()),
-    )
+    if (hooks.canSave) actions.append(btn('Save this look', 'btn primary', () => this.hooks.onSaveCurrent()))
+    actions.append(btn('Close', 'btn', () => this.close()))
     head.append(actions)
 
     this.note = document.createElement('div')
@@ -94,10 +98,12 @@ export class Gallery {
       'Saved on this device',
       mine.length > 0
         ? 'These live in this browser only. Use “Copy link” to send one somewhere permanent.'
-        : 'Nothing saved yet. Open the editor, move some sliders, then press “Save this look”.',
+        : this.hooks.canSave
+          ? 'Nothing saved yet. Open the editor, move some sliders, then press “Save this look”.'
+          : 'Nothing saved on this device.',
       mine,
     )
-    this.grid.append(mineSection)
+    if (mine.length > 0 || this.hooks.canSave) this.grid.append(mineSection)
 
     if (mine.length > 1) {
       const row = document.createElement('div')
