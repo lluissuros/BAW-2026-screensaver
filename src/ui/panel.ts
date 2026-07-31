@@ -224,6 +224,9 @@ export class Panel {
   private buildField(field: Field): HTMLElement {
     const wrap = document.createElement('div')
     wrap.className = 'control'
+    // Lets a check drive a specific knob — `[data-path="layers.0.width"] input` — instead of
+    // counting sliders and hoping the order never changes.
+    wrap.dataset.path = field.path
 
     const label = document.createElement('label')
     label.textContent = field.label
