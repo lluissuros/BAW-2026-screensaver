@@ -1,0 +1,13 @@
+{
+  "name": "pulse",
+  "motion": {
+    "loopSeconds": 16,
+    "intensity": 1.55,
+    "beatsPerLoop": 32,
+    "seed": 7
+  },
+  "post": {
+    "grain": 0.04,
+    "vignette": 0.1
+  }
+}

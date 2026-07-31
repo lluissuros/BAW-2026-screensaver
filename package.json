@@ -1,0 +1,17 @@
+{
+  "name": "baw-2026-screensaver",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "check": "tsc --noEmit",
+    "assets": "./scripts/prepare-assets.sh"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.11"
+  }
+}
