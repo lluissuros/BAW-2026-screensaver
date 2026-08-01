@@ -87,27 +87,46 @@ attachInteractions({
   },
 })
 
-// Clickable, not just a keyboard hint: most people who open the shared link will never guess
-// that a letter key opens an editor. On a phone there is nothing to open, so the same pill offers
-// the one thing that helps there — getting the browser chrome out of the way.
-const hint = document.createElement('button')
-hint.id = 'hint'
-hint.type = 'button'
-if (editable) {
-  hint.innerHTML = 'Edit this screen <span>· <kbd>E</kbd> · <kbd>F</kbd> full screen</span>'
-  hint.addEventListener('click', () => setMode(true))
-} else {
-  hint.textContent = 'Tap for full screen'
-  hint.addEventListener('click', () => void toggleFullscreen())
-}
-uiRoot.append(hint)
+/**
+ * The way in. The base URL shows the artwork clean — that is what it is for — so the two things
+ * someone might want next live in one small bar: pick a version, or start adjusting.
+ *
+ * It behaves like a video player's controls: present when you arrive or move, gone when you leave
+ * it alone. That way the same page is both a landing page for a stranger and an unattended screen
+ * at the festival, with nothing to remember to switch off.
+ */
+const entry = document.createElement('div')
+entry.id = 'entry'
 
-if (!editable) {
-  // The whole screen is the button. On a phone the only useful control is getting the browser's
-  // chrome out of the way.
-  canvas.addEventListener('click', () => void toggleFullscreen())
-  if (isTouchPrimary()) document.body.classList.add('touch')
+const versionsButton = document.createElement('button')
+versionsButton.type = 'button'
+versionsButton.textContent = 'See versions'
+versionsButton.addEventListener('click', () => gallery.open(receivedLooks))
+
+const separator = document.createElement('span')
+separator.className = 'sep'
+separator.textContent = '·'
+
+const secondButton = document.createElement('button')
+secondButton.type = 'button'
+if (editable) {
+  secondButton.innerHTML = 'Edit this screen <kbd>E</kbd>'
+  secondButton.addEventListener('click', () => setMode(true))
+} else {
+  // No editor on a phone, so offer the one thing that helps there instead.
+  secondButton.textContent = 'Full screen'
+  secondButton.addEventListener('click', () => void toggleFullscreen())
 }
+
+entry.append(versionsButton, separator, secondButton)
+uiRoot.append(entry)
+
+if (isTouchPrimary()) document.body.classList.add('touch')
+
+// Move the mouse or touch the screen and the way in comes back; leave it alone and the artwork is
+// on its own again. An unattended screen therefore never shows chrome.
+window.addEventListener('pointermove', () => revealEntry(3000))
+window.addEventListener('pointerdown', () => revealEntry(5000))
 
 setMode(editing)
 applyTools()
@@ -144,9 +163,7 @@ if (import.meta.env.DEV) {
   })
 }
 
-// Shorter on a phone: the pill sits over the hand-lettering, and there is only one thing it can
-// tell you.
-showHint(editable ? 4000 : 2500)
+revealEntry(6000)
 requestAnimationFrame(loop)
 
 // ── loop ──
@@ -172,6 +189,7 @@ function loop(now: number): void {
 function setMode(edit: boolean): void {
   editing = edit && editable
   document.body.classList.toggle('show-mode', !editing)
+  if (editing) entry.classList.remove('visible')
   panel.open(editing)
   overlay.setVisible(editing)
   if (editing) panel.selectLayer(selected)
@@ -232,7 +250,7 @@ function onKeyDown(event: KeyboardEvent): void {
     return
   }
   if (event.key === 'h' || event.key === 'H') {
-    showHint(2500)
+    revealEntry(4000)
     return
   }
   if (/^[1-9]$/.test(event.key)) {
@@ -271,10 +289,16 @@ async function toggleFullscreen(): Promise<void> {
   }
 }
 
-function showHint(ms: number): void {
-  hint.classList.add('visible')
+/** Shows the entry bar, then hides it again once nothing has happened for `ms`. */
+function revealEntry(ms: number): void {
+  // In edit mode the panel is the way in, and on top of the gallery it would just be litter.
+  if (editing || gallery.isOpen) {
+    entry.classList.remove('visible')
+    return
+  }
+  entry.classList.add('visible')
   clearTimeout(hintTimer)
-  hintTimer = window.setTimeout(() => hint.classList.remove('visible'), ms)
+  hintTimer = window.setTimeout(() => entry.classList.remove('visible'), ms)
 }
 
 // ── audio ──

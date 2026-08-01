@@ -412,40 +412,70 @@ button.btn:disabled {
 
 /* ── the one thing show mode does display: a hint on first load ── */
 
-#hint {
+/* The way in: present on arrival and on any movement, gone when left alone, so the same page is a
+   landing page for a visitor and a clean unattended screen at the festival. */
+
+#entry {
   position: fixed;
-  bottom: 18px;
+  bottom: 20px;
   left: 50%;
-  transform: translateX(-50%);
-  padding: 8px 15px;
+  transform: translateX(-50%) translateY(4px);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   background: rgba(23, 17, 20, 0.72);
-  backdrop-filter: blur(8px);
-  color: #f4eef0;
-  font-family: var(--font);
-  font-size: 12px;
-  letter-spacing: 0.02em;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 6px 24px rgba(40, 4, 16, 0.25);
   z-index: 20;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
   pointer-events: none;
-  cursor: pointer;
 }
 
-#hint.visible {
+#entry.visible {
   opacity: 1;
+  transform: translateX(-50%) translateY(0);
   pointer-events: auto;
 }
 
-#hint:hover {
-  background: rgba(23, 17, 20, 0.9);
-  border-color: var(--accent);
+#entry button {
+  appearance: none;
+  border: none;
+  background: none;
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: #f4eef0;
+  font-family: var(--font);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
 }
 
-#hint span {
-  opacity: 0.55;
+#entry button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#entry button kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  opacity: 0.5;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  padding: 0 3px;
   margin-left: 4px;
+}
+
+#entry .sep {
+  color: var(--ink-dim);
+  opacity: 0.5;
+  font-size: 12px;
 }
 
 /* ── gallery: the whole storage story for anyone who will not open a code editor ── */
@@ -599,19 +629,15 @@ button.btn.wide {
   margin-bottom: 0;
 }
 
-#hint kbd {
-  font-family: var(--mono);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 3px;
-  padding: 0 3px;
+/* ── phones: a display, so the chrome is two comfortable tap targets ── */
+
+body.touch #entry {
+  bottom: max(22px, env(safe-area-inset-bottom));
 }
 
-/* ── phones: a display, so the only chrome is one comfortable tap target ── */
-
-body.touch #hint {
+body.touch #entry button {
   font-size: 14px;
-  padding: 11px 20px;
-  bottom: max(20px, env(safe-area-inset-bottom));
+  padding: 10px 15px;
 }
 
 @media (max-width: 520px) {
