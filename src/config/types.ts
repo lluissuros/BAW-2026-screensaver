@@ -25,6 +25,12 @@ export interface CanvasConfig {
   /** contain = whole composition visible with background bars. cover = fill, cropping. */
   fit: 'contain' | 'cover'
   background: string
+  /**
+   * What fills the screen *outside* the design canvas. Black by default, on purpose: matching it
+   * to the background hides where the composition ends, and you cannot judge whether something is
+   * centred if you cannot see the edges it is centred within.
+   */
+  outside: string
 }
 
 export interface GlobalMotionConfig {

@@ -53,6 +53,9 @@ export function defaultConfig(): Config {
       height: 2160,
       fit: 'contain',
       background: PALETTE.fuchsia,
+      // Anything outside the 1080 × 2160 canvas is not part of the composition, so it reads as
+      // black rather than pretending to be more artwork.
+      outside: '#000000',
     },
     motion: {
       loopSeconds: 24,

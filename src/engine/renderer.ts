@@ -124,9 +124,11 @@ export class Renderer {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null)
     gl.viewport(0, 0, this.canvas.width, this.canvas.height)
     gl.disable(gl.BLEND)
-    // Letterbox bars, when the screen is not the composition's ratio, are the background
-    // colour rather than black — they read as part of the artwork.
-    gl.clearColor(br, bg, bb, 1)
+    // Everything outside the design canvas gets its own colour — black by default. Filling it with
+    // the background instead would make the composition look like it bleeds to the screen edge,
+    // and then there is no way to tell whether an element is centred.
+    const [or_, og, ob] = hexToRgb(config.canvas.outside)
+    gl.clearColor(or_, og, ob, 1)
     gl.clear(gl.COLOR_BUFFER_BIT)
 
     this.postShader.use()

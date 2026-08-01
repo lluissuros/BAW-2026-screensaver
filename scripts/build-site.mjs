@@ -35,11 +35,14 @@ const presetDir = 'src/presets'
 const looks = readdirSync(presetDir)
   .filter((file) => file.endsWith('.json'))
   .sort()
-  .map((file, index) => {
-    // `02-calm.json` → route /2/ and /calm/. See publishedLooks() in src/config/presets.ts.
-    const slug = basename(file, '.json').replace(/^\d+-/, '')
+  .map((file) => {
+    // `02-calm.json` → route /2/ and /calm/. The number is the prefix, not the position, so
+    // deleting a look never renumbers the others — see publishedLooks() in src/config/presets.ts.
+    const stem = basename(file, '.json')
+    const slug = stem.replace(/^\d+-/, '')
+    const number = Number(stem.match(/^(\d+)-/)?.[1] ?? 0)
     const data = JSON.parse(readFileSync(join(presetDir, file), 'utf8'))
-    return { slug, name: typeof data.name === 'string' && data.name ? data.name : slug, number: index + 1 }
+    return { slug, name: typeof data.name === 'string' && data.name ? data.name : slug, number }
   })
 
 // ── route pages ──
@@ -56,7 +59,7 @@ function writeRoute(path, globals) {
 }
 
 for (const look of looks) {
-  writeRoute(String(look.number), { __BAW_LOOK__: look.slug })
+  if (look.number > 0) writeRoute(String(look.number), { __BAW_LOOK__: look.slug })
   if (look.slug !== String(look.number)) writeRoute(look.slug, { __BAW_LOOK__: look.slug })
   console.log(`route /${look.number}/ and /${look.slug}/ → ${look.name}`)
 }

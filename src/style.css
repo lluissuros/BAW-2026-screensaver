@@ -22,7 +22,9 @@ body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #fb80a4;
+  /* Matches the default "outside the canvas" colour, so the first paint before WebGL is ready
+     does not flash fuchsia and then letterbox to black. */
+  background: #000;
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
 }

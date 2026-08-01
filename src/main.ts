@@ -2,7 +2,7 @@ import './style.css'
 
 import { defaultConfig } from './config/defaults'
 import { parseCollection } from './config/links'
-import { findPreset, loadWorking, saveWorking } from './config/presets'
+import { findPreset, publishedLooks } from './config/presets'
 import { decodeConfig, encodeConfig, Store } from './config/store'
 import type { Config } from './config/types'
 import { DriveBus } from './drive'
@@ -43,7 +43,6 @@ let editing = editable && params.has('edit')
 let selected = 0
 let exporting = false
 let hintTimer = 0
-let autosaveTimer = 0
 let permalinkTimer = 0
 let lastFrameAt = performance.now()
 
@@ -142,10 +141,9 @@ canvas.addEventListener('webglcontextlost', (event) => {
 })
 
 store.subscribe((config) => {
-  clearTimeout(autosaveTimer)
-  autosaveTimer = window.setTimeout(() => saveWorking(config), 400)
   // Keep the address bar a valid permalink at all times, so "copy the URL" is always a way to
   // save and share — no button required, and a reload restores exactly what you were looking at.
+  // This is also what replaces the old autosave: the state lives in the URL, not in storage.
   clearTimeout(permalinkTimer)
   permalinkTimer = window.setTimeout(() => {
     history.replaceState(null, '', `${location.pathname}${location.search}#c=${encodeConfig(config)}`)
@@ -407,14 +405,12 @@ function resolveInitialConfig(): Config {
     if (preset) return structuredClone(preset.config)
   }
 
-  // Nothing asked for: pick up where the last session left off, so a stray reload mid-edit
-  // costs nothing. `?fresh=1` skips that.
-  if (!params.has('fresh')) {
-    const working = loadWorking()
-    if (working) return working
-  }
-
-  return defaultConfig()
+  // Nothing asked for: look 1. Deliberately *not* the last thing this browser was editing —
+  // that made the shared link show whatever half-finished experiment happened to be in the
+  // visitor's storage, which is confusing on the page everyone is sent to. Work in progress is
+  // never lost, because the address bar is kept as a permalink of it.
+  const first = publishedLooks()[0]
+  return first ? structuredClone(first.config) : defaultConfig()
 }
 
 function roundTo(value: number, decimals: number): number {

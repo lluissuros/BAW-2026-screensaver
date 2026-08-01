@@ -58,6 +58,12 @@ export function globalSections(): Section[] {
           ],
         },
         { path: 'canvas.background', label: 'Background', kind: 'color' },
+        {
+          path: 'canvas.outside',
+          label: 'Outside the canvas',
+          kind: 'color',
+          hint: 'Fills the screen beyond the composition. Black shows you exactly where the canvas ends.',
+        },
       ],
     },
     {

@@ -59,7 +59,7 @@ Colours sampled from the artist's own files, not eyeballed:
 
 | | Hex | Where |
 | --- | --- | --- |
-| Background fuchsia | `#fb80a4` | the whole field |
+| Background fuchsia | `#fb80a4` | the canvas |
 | Logo red | `#e50000` | BAW! |
 | Painted red | `#f00000` | forma bruno 1 |
 | Ink red | `#ce1215` | BRAVA! ARTS WEEKEND |
@@ -134,9 +134,9 @@ Each published look gets real addresses, generated at build time:
 
 | URL | What it is |
 | --- | --- |
-| `/` | the current default, clean |
-| `/1/`, `/2/`, `/3/` … | one per published look, in file order |
-| `/reference/`, `/calm/`, `/pulse/` | the same looks, by name |
+| `/` | look 1, clean — the artist's reference composition |
+| `/1/`, `/2/`, … | one per published look |
+| `/reference/`, `/test1/` | the same looks, by name |
 | `/gallery/` | all of them as a grid, plus whatever the visitor saved |
 
 ### On a phone it only shows
@@ -193,14 +193,19 @@ ugly look and nothing else.
 
 ### Where looks live
 
-- **Published** — `src/presets/NN-slug.json`, committed. The `NN` prefix picks the route number
-  and is stripped from the pretty URL, so `02-calm.json` is `/2/` and `/calm/`. Files are
-  partial: anything absent falls back to the reference, which makes them short and readable.
+- **Published** — `src/presets/NN-slug.json`, committed. The `NN` prefix *is* the route number and
+  is stripped from the pretty URL, so `02-test1.json` is `/2/` and `/test1/`. Because the number
+  comes from the prefix rather than the position, deleting a look never renumbers the others, so
+  links already sent out keep working. Files are partial: anything absent falls back to the
+  reference, which makes them short and readable.
 - **Saved on this device** — the browser's storage. Free to make, tied to one machine.
 
-Edits autosave too, so a stray reload mid-session loses nothing. `?fresh=1` ignores that,
-`?preset=<slug>` opens a specific one, `?edit=1` opens with the panel out, `?gallery=1` opens the
-grid.
+The base URL always opens look 1, never the last thing this browser was editing — the page
+everyone is sent to has to be predictable. Work in progress is not lost either way, because the
+address bar is kept as a permalink of it.
+
+`?preset=<slug>` opens a specific look, `?edit=1` opens with the panel out, `?gallery=1` opens the
+grid, `?edit=force` overrides the phone check.
 
 ## Exporting a video loop
 
@@ -247,7 +252,8 @@ motion is actually doing without watching a full cycle. It needs `npm run dev` r
 - Open the built page, load the preset you want, press <kbd>E</kbd> to hide the panel, then
   <kbd>F</kbd>. Show mode hides the cursor.
 - Set **Canvas width/height** to the screen's real resolution if you know it; the ratio is what
-  matters and it defaults to the artist's 1:2. Anything left over is filled with the background
-  fuchsia, not black.
+  matters and it defaults to the artist's 1:2 (1080 × 2160). Anything outside the canvas is black,
+  so you can always see exactly where the composition ends and whether things sit where you meant
+  them to. **Outside the canvas** in the panel changes that colour if you would rather it bled.
 - If the GPU context is lost the page reloads itself, so an unattended machine recovers.
 - Keep a rendered video as a fallback.

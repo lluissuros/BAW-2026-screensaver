@@ -11,12 +11,13 @@ import { migrate, minimalConfig } from './store'
  *    with no account and nothing to install, but they live on one machine only. The way one
  *    becomes permanent is its share link: see `scripts/add-look.mjs`.
  *
- * Published looks are ordered by filename, and `scripts/build-site.mjs` numbers the routes the
- * same way — the two must agree or `/3` in the gallery would open something else.
+ * A published look's number is its filename prefix: `02-test1.json` is `/2/` and `/test1/`.
+ * `scripts/build-site.mjs` reads it the same way — the two must agree or `/2` in the gallery would
+ * open something else. Using the prefix rather than the position means deleting a look never
+ * renumbers the ones after it, so links already sent out keep working.
  */
 
 const LOCAL_KEY = 'baw2026.presets'
-const AUTOSAVE_KEY = 'baw2026.working'
 
 const builtinFiles = import.meta.glob('../presets/*.json', { eager: true, import: 'default' }) as Record<
   string,
@@ -70,12 +71,21 @@ export function publishedLooks(): PresetEntry[] {
       const file = path.replace(/^.*\//, '').replace(/\.json$/, '')
       const slug = file.replace(/^\d+-/, '')
       const config = migrate(data)
-      return { file, name: config.name || slug, slug, source: 'builtin' as const, config }
+      // The number comes from the prefix, not from the position in the list. Positional
+      // numbering meant deleting a look silently renumbered every one after it, breaking links
+      // that had already been sent out.
+      const prefix = file.match(/^(\d+)-/)?.[1]
+      return {
+        file,
+        name: config.name || slug,
+        slug,
+        source: 'builtin' as const,
+        config,
+        number: prefix ? Number(prefix) : undefined,
+      }
     })
-    // Sort by *filename*, prefix included — the same order scripts/build-site.mjs numbers the
-    // routes in. Sorting by slug instead would silently make `/3` here open a different look.
     .sort((a, b) => a.file.localeCompare(b.file))
-    .map(({ file: _file, ...entry }, index) => ({ ...entry, number: index + 1 }))
+    .map(({ file: _file, ...entry }) => entry)
 }
 
 /** Looks saved in this browser. Newest first — people want their latest attempt on top. */
@@ -111,22 +121,4 @@ export function deleteLocalPreset(name: string): void {
   const all = readLocal()
   delete all[name]
   writeLocal(all)
-}
-
-/** Keeps in-progress edits across a reload, so a stray refresh mid-session costs nothing. */
-export function saveWorking(config: Config): void {
-  try {
-    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(minimalConfig(config)))
-  } catch {
-    /* ignore */
-  }
-}
-
-export function loadWorking(): Config | null {
-  try {
-    const raw = localStorage.getItem(AUTOSAVE_KEY)
-    return raw ? migrate(JSON.parse(raw)) : null
-  } catch {
-    return null
-  }
 }
