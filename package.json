@@ -11,6 +11,7 @@
     "check": "tsc --noEmit",
     "assets": "./scripts/prepare-assets.sh",
     "add-look": "node scripts/add-look.mjs",
+    "rename-look": "node scripts/rename-look.mjs",
     "contact-sheet": "node scripts/contact-sheet.mjs"
   },
   "devDependencies": {

@@ -1,5 +1,11 @@
 import { collectionLink, routeLink, shareLink, submitIssueLink } from '../config/links'
-import { deleteLocalPreset, localLooks, publishedLooks, type PresetEntry } from '../config/presets'
+import {
+  deleteLocalPreset,
+  localLooks,
+  publishedLooks,
+  renameLocalPreset,
+  type PresetEntry,
+} from '../config/presets'
 import { REPO } from '../config/site'
 import type { Config } from '../config/types'
 import type { ThumbnailRenderer } from '../engine/thumbnail'
@@ -178,6 +184,11 @@ export class Gallery {
         this.say(`Copied the link to “${entry.name}”.`)
       }),
     )
+    // Published looks are files in the repo, so only Lluis can rename one — but the button is
+    // still worth having here, because this is where you are looking at the bad name. It hands
+    // back the exact command instead of pretending the browser can do it.
+    actions.append(btn('Rename', 'btn', () => void this.rename(entry)))
+
     if (entry.source === 'local' && !entry.slug.startsWith('shared-')) {
       actions.append(
         btn('Delete', 'btn', () => {
@@ -196,6 +207,28 @@ export class Gallery {
 
     card.append(figure, title, actions)
     return card
+  }
+
+  private async rename(entry: PresetEntry): Promise<void> {
+    const wanted = prompt(`Rename “${entry.name}” to:`, entry.name)?.trim()
+    if (!wanted || wanted === entry.name) return
+
+    if (entry.source === 'local') {
+      const result = renameLocalPreset(entry.name, wanted)
+      if (result === 'taken') return this.say(`There is already a look called “${wanted}”.`)
+      if (result === 'missing') return this.say(`Could not find “${entry.name}” any more.`)
+      this.refresh()
+      return this.say(`Renamed to “${wanted}”.`)
+    }
+
+    // A published look lives in a committed file; the browser has no business writing to it.
+    const command = `npm run rename-look -- --slug=${entry.slug} --name='${wanted.replace(/'/g, "'\\''")}'`
+    const copied = await copy(command)
+    this.say(
+      copied
+        ? `“${entry.name}” is a published file, so renaming it is a commit. The command is on your clipboard — run it, then push.`
+        : command,
+    )
   }
 
   private openEntry(entry: PresetEntry): void {

@@ -122,3 +122,25 @@ export function deleteLocalPreset(name: string): void {
   delete all[name]
   writeLocal(all)
 }
+
+export type RenameResult = 'ok' | 'missing' | 'taken'
+
+/**
+ * Renames a look saved in this browser. Rebuilt key by key rather than deleted and re-added, so
+ * the look keeps its place in the list instead of jumping to the top as if it were new.
+ */
+export function renameLocalPreset(from: string, to: string): RenameResult {
+  const trimmed = to.trim()
+  if (!trimmed) return 'taken'
+  const all = readLocal()
+  if (!(from in all)) return 'missing'
+  if (trimmed !== from && trimmed in all) return 'taken'
+
+  const next: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(all)) {
+    if (key === from) next[trimmed] = { ...(value as Record<string, unknown>), name: trimmed }
+    else next[key] = value
+  }
+  writeLocal(next)
+  return 'ok'
+}

@@ -186,6 +186,23 @@ Adding the `publish-look` label — one tap on a phone — makes
 `.github/workflows/publish-look.yml` decode it, commit it and reply with the URL. Nothing lands
 unattended: without the label, nothing happens.
 
+### Renaming one
+
+Looks submitted through an issue arrive called whatever the submitter typed, which is often
+"test1". **Rename** in the gallery handles both kinds:
+
+- A look saved on your device is renamed on the spot.
+- A published one is a committed file, so the browser has no business writing to it — the button
+  puts the command on your clipboard instead:
+
+  ```bash
+  npm run rename-look -- --slug=test1 --name='bruno big'
+  ```
+
+  Run it with no arguments to list what is published. The numeric prefix is kept, so `/2/` still
+  opens the same look afterwards; only the named route changes (`/test1/` → `/bruno-big/`). That is
+  the reason to share the numbered form.
+
 Incoming links are not trusted. `scripts/add-look.mjs` rebuilds the JSON field by field against
 the shape of `defaultConfig()`, so unknown keys are dropped, types are enforced, canvas sizes are
 clamped and asset names are checked against the files that exist. A hostile link can produce an
