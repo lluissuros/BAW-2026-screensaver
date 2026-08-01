@@ -1,0 +1,31 @@
+{
+  "name": "reference2",
+  "motion": {
+    "loopSeconds": 54
+  },
+  "audio": {
+    "enabled": true,
+    "smoothing": 0.97,
+    "beatSensitivity": 2.39
+  },
+  "layers": [
+    {
+      "x": 48.2,
+      "y": 48.8,
+      "width": 80,
+      "motion": {
+        "squash": 20,
+        "sway": 11.65
+      }
+    },
+    {
+      "x": 49.1,
+      "y": 9.6,
+      "width": 60.7
+    },
+    {
+      "x": 57.7,
+      "y": 95.3
+    }
+  ]
+}
