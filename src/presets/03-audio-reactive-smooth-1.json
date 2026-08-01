@@ -1,0 +1,31 @@
+{
+  "name": "audio reactive smooth 1",
+  "motion": {
+    "loopSeconds": 54
+  },
+  "audio": {
+    "enabled": true,
+    "smoothing": 0.97,
+    "beatSensitivity": 2.39
+  },
+  "layers": [
+    {
+      "x": 48.2,
+      "y": 48.8,
+      "width": 67.1,
+      "motion": {
+        "squash": 20,
+        "sway": 11.65
+      }
+    },
+    {
+      "x": 44.1,
+      "y": 12.9,
+      "opacity": 0
+    },
+    {
+      "x": 57.7,
+      "y": 95.3
+    }
+  ]
+}
