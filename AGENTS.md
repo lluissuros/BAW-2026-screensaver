@@ -52,14 +52,16 @@ Consequences to respect:
 - **`src/config/diff.ts` has no imports** beyond a type, because `scripts/add-look.mjs` loads it
   directly in Node (whose ESM resolution differs from Vite's). Keep it that way, or the CLI and
   the browser will drift into two implementations of the same thing.
-- **Route numbering lives in two places** — `publishedLooks()` and `scripts/build-site.mjs` — and
-  both must sort by *filename*, prefix included. They disagreed once and `/3` in the gallery
-  opened a different look than `/3/` did.
+- **A look's route number is its filename prefix**, read in two places — `publishedLooks()` and
+  `scripts/build-site.mjs` — which must agree. They disagreed once (one sorted by slug, the other
+  by filename) and `/3` in the gallery opened a different look than `/3/` served. Do not go back to
+  numbering by position in the list either: deleting a look then renumbers every one after it, and
+  links already sent out quietly point somewhere else.
 - **Anything decoded from a link is hostile input.** `scripts/add-look.mjs` rebuilds it against
   the shape of `defaultConfig()`. Extend that sanitiser when you add a config field, especially
   one that becomes a GPU allocation or a filename.
 
-## The two invariants worth protecting
+## The invariants worth protecting
 
 1. **Every animation rate is a whole number of cycles per loop.** That is the only reason the
    motion is seamless and the exported video is a true loop. If you add an effect, its rate
@@ -77,16 +79,22 @@ Claude cannot see whether the motion looks good — say what was measured, not h
 ```bash
 npm run check                                   # types
 node scripts/contact-sheet.mjs                  # renders the loop at N phases into one strip
+node scripts/inspect.mjs <url> out.png 2500 '<js>'   # load, evaluate, screenshot, report console
 ```
+
+`inspect.mjs` is the general tool: it drives a real headless browser over CDP, with `MOBILE=1` for
+phone emulation and `PROMPT_TEXT=…` to get through a `prompt()`. Read the header for worked
+examples. Every bug found in this project was invisible without it.
 
 The dev build exposes `window.baw` (`store`, `drive`, `renderer`, `panel`, `recordLoop`), which
 is how the contact sheet drives the real renderer through headless Chrome rather than
 re-implementing the maths. Use it for any visual check.
 
-Two checks that have already caught real problems and are worth repeating after touching layout
+Checks that have already caught real problems and are worth repeating after touching layout
 or export:
 
 - **Ghost alignment** — freeze motion (`intensity` 0), set the reference ghost to 1, screenshot.
   It blends with `difference`, so a correct layout is black apart from 1–2px edges.
 - **Frame accuracy** — record a short loop and `ffprobe -count_frames` it. `seconds × fps`
   frames exactly, or the "true loop" claim is false.
+- **Phone behaviour** — `MOBILE=1` and open a `?edit=1` URL. The panel must stay shut.

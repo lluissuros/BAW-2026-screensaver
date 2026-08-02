@@ -259,6 +259,7 @@ in the panel's **Artwork** dropdown automatically.
 ```bash
 npm run check                     # types
 node scripts/contact-sheet.mjs    # renders the loop at 6 phases into one strip
+node scripts/inspect.mjs URL out.png   # load it for real, screenshot it, report the console
 ```
 
 The contact sheet drives the real renderer through a headless browser, so it shows what the
