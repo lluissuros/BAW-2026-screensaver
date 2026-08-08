@@ -268,7 +268,9 @@ motion is actually doing without watching a full cycle. It needs `npm run dev` r
 ## On the day
 
 - Open the built page, load the preset you want, press <kbd>E</kbd> to hide the panel, then
-  <kbd>F</kbd>. Show mode hides the cursor.
+  <kbd>F</kbd>. Show mode hides the cursor. Full screen also suppresses the **See versions / Edit
+  this screen** bar entirely, so a knocked mouse cannot put chrome in front of an audience —
+  <kbd>F</kbd> to leave and <kbd>E</kbd> to edit still work, and the bar returns on the way out.
 - Set **Canvas width/height** to the screen's real resolution if you know it; the ratio is what
   matters and it defaults to the artist's 1:2 (1080 × 2160). Anything outside the canvas is black,
   so you can always see exactly where the composition ends and whether things sit where you meant

@@ -127,6 +127,13 @@ if (isTouchPrimary()) document.body.classList.add('touch')
 window.addEventListener('pointermove', () => revealEntry(3000))
 window.addEventListener('pointerdown', () => revealEntry(5000))
 
+// Entering full screen hides the bar at once rather than waiting out its timer; leaving it offers
+// the way back, since the pointer may not have moved at all.
+document.addEventListener('fullscreenchange', () => {
+  if (document.fullscreenElement) entry.classList.remove('visible')
+  else revealEntry(4000)
+})
+
 setMode(editing)
 applyTools()
 resize()
@@ -290,7 +297,9 @@ async function toggleFullscreen(): Promise<void> {
 /** Shows the entry bar, then hides it again once nothing has happened for `ms`. */
 function revealEntry(ms: number): void {
   // In edit mode the panel is the way in, and on top of the gallery it would just be litter.
-  if (editing || gallery.isOpen) {
+  // Full screen is the projection mode: an audience is looking at this, and a stray bump of the
+  // mouse must not put a control bar over the artwork. The keys still work — F leaves, E edits.
+  if (editing || gallery.isOpen || document.fullscreenElement) {
     entry.classList.remove('visible')
     return
   }
